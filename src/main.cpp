@@ -8,6 +8,6 @@ int main(int argc, char *argv[]) {
         cout << "Usage: ia32";
         return -1;
     }
-    parser parser = new parser(argv[1]);
+    parser parser(argv[1]);
     return 0;
 }

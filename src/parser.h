@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include "instruction.h"
+#include "block.h"
 
 using namespace std;
 
@@ -19,7 +20,7 @@ private:
 	string filter_comment(string line);
 	bool is_label(string line);
 	string get_label(string line);
-	instruction extract_instruction(string line);
+	instruction* extract_instruction(string line);
 
 public:
 	parser(string file_name);
@@ -29,4 +30,4 @@ public:
 
 };
 
-#undef PARSER_H
+#endif 

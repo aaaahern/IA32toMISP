@@ -1,4 +1,6 @@
 #include "parser.h"
+#include <fstream>
+#include <sstream>
 
 parser::parser(string file_name) {
 	ifstream infile(file_name);
@@ -13,7 +15,7 @@ parser::parser(string file_name) {
 			string label = get_label(buffer);
 			block* new_block = new block(label);
 			code_blocks.push_back(new_block);
-			label_dic.insert(label, code_blocks.size() - 1);
+			label_dic.insert({label, code_blocks.size() - 1});
 
 			current_block = new_block;
 		}

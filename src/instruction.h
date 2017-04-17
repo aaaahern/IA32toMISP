@@ -22,4 +22,4 @@ public:
 };
 
 
-#undef INSTRUCTION_H
+#endif 

@@ -16,6 +16,6 @@ void block::push_back_instruction(instruction* instr) {
 
 block::~block() {
 	for (auto instr = instructions.begin(); instr != instructions.end(); instr++) {
-		delete instr;
+		delete *instr;
 	}
 }
