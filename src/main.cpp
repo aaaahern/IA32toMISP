@@ -1,5 +1,7 @@
 #include <iostream>
+#include <string.h>
 #include "parser.h"
+#include "translator.h"
 
 using namespace std;
 
@@ -8,6 +10,14 @@ int main(int argc, char *argv[]) {
         cout << "Usage: ia32";
         return -1;
     }
-    parser parser(argv[1]);
+    char argv1[sizeof(argv[1])];
+    strcpy(argv1, argv[1]);
+    string input_file_path(argv1);
+    parser parser(input_file_path);
+    translator translator;
+    string output = translator.translate_IA32_to_MIPS(parser);
+
+    // TODO write output to argv[2];
+
     return 0;
 }
