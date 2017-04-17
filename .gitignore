@@ -30,3 +30,5 @@
 
 .DS_Store
 *.swp
+.depend
+IA32toMISP
