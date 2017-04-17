@@ -10,12 +10,14 @@ translator::translator() {
 }
 
 string translator::translate_IA32_to_MIPS(parser parser) {
+    string output = "";
     for (vector<block*>::iterator b_iter = parser.get_code_blocks().begin(); 
         b_iter != parser.get_code_blocks().end(); b_iter++) {
         for (vector<instruction*>::iterator i_iter = (*b_iter) -> get_instructions().begin(); 
             i_iter != (*b_iter) -> get_instructions().end(); i_iter++) {
+            string translated_insts = "";
             if ((*i_iter) -> get_op() == "movl") {
-
+                translated_insts += translate_movl((*i_iter));
             } else if ((*i_iter) -> get_op() == "addl") {
 
             } else if ((*i_iter) -> get_op() == "subl") {
@@ -43,8 +45,15 @@ string translator::translate_IA32_to_MIPS(parser parser) {
             } else if ((*i_iter) -> get_op() == "notl") {
 
             } 
+
         }
+        output += "\n";
     }
+}
+
+string translator::translate_movl(instruction*) {
+    // TODO
+    return "";
 }
 
 translator::~translator() {

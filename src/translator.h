@@ -10,9 +10,10 @@ using namespace std;
 
 class translator {
 private:
-    string output_path;
-
     unordered_map<string, string> registers_map;
+
+    /** helper method **/
+    string translate_movl(instruction*);
 
 public:
     translator();
