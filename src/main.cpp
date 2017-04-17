@@ -10,9 +10,9 @@ int main(int argc, char *argv[]) {
         cout << "Usage: ia32";
         return -1;
     }
-    char argv1[sizeof(argv[1])];
-    strcpy(argv1, argv[1]);
-    string input_file_path(argv1);
+    // TODO transfer all upper-case letters
+
+    string input_file_path(argv[1]);
     parser parser(input_file_path);
     translator translator;
     string output = translator.translate_IA32_to_MIPS(parser);

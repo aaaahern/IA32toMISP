@@ -13,6 +13,11 @@ string translator::translate_IA32_to_MIPS(parser parser) {
     string output = "";
     for (vector<block*>::iterator b_iter = parser.get_code_blocks().begin(); 
         b_iter != parser.get_code_blocks().end(); b_iter++) {
+        if ((*b_iter) -> get_label() != "") { // add procedure head
+            output += ".globl " + (*b_iter) -> get_label() + "\n";
+            output += ".ent " + (*b_iter) -> get_label() + "\n";
+            output += (*b_iter) -> get_label() + ":\n";
+        }
         for (vector<instruction*>::iterator i_iter = (*b_iter) -> get_instructions().begin(); 
             i_iter != (*b_iter) -> get_instructions().end(); i_iter++) {
             string translated_insts = "";
@@ -45,15 +50,68 @@ string translator::translate_IA32_to_MIPS(parser parser) {
             } else if ((*i_iter) -> get_op() == "notl") {
 
             } 
-
+            output += translated_insts + "\n";
+        }
+        if ((*b_iter) -> get_label() != "") { // add procedure end
+            output += ".end " + (*b_iter) -> get_label() + "\n";
         }
         output += "\n";
     }
 }
 
-string translator::translate_movl(instruction*) {
-    // TODO
-    return "";
+string translator::translate_movl(instruction* inst) {
+    bool isWrongInst = false;
+    string translated_inst;
+    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
+        isWrongInst = true;
+    }
+    if (inst -> get_operand1().at(0) == '%') { // first operand is register
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            translated_inst = "add " + registers_map[inst -> get_operand2()] + 
+                ", $zero" + registers_map[inst -> get_operand1()];
+        } else if (isdigit(inst -> get_operand2().at(0))) { // second operand is address
+            int i = inst -> get_operand2().find("(");
+            int j = inst -> get_operand2().find(")");
+            string offset = inst -> get_operand2().substr(0, i);
+            string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
+            translated_inst = "sw " + registers_map[inst -> get_operand1()] + ", " + 
+                offset + "(" + registers_map[dst_register] + ")";
+        } else {
+            isWrongInst = true;
+        }
+    } else if (inst -> get_operand1().at(0) == '$') { // first operand is immediate
+        string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            translated_inst = "li " + registers_map[inst -> get_operand2()] + ", " + immediate;
+        } else if (isdigit(inst -> get_operand2().at(0))) { // second operand is address
+            int i = inst -> get_operand2().find("(");
+            int j = inst -> get_operand2().find(")");
+            string offset = inst -> get_operand2().substr(0, i);
+            string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
+            string temp_register = "$s7"; // use $s7 as a temp register
+            translated_inst = "li" + temp_register + "," + immediate + "\n" + 
+                "sw " + temp_register + "," + offset + "(" + dst_register + ")"; 
+        } else {
+            isWrongInst = true;
+        }
+    } else if (isdigit(inst -> get_operand1().at(0))) { // first operand is address
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            int i = inst -> get_operand1().find("(");
+            int j = inst -> get_operand1().find(")");
+            string offset = inst -> get_operand1().substr(0, i);
+            string src_register = inst -> get_operand1().substr(i+1, j-i-1);
+            translated_inst = "lw " + registers_map[inst -> get_operand2()] + ", " + 
+                offset + "(" + src_register + ")";
+        } else {
+            isWrongInst = true;
+        }
+    } else {
+        isWrongInst = true;
+    }
+    if (isWrongInst) {
+        return "Wrong input instruction.";
+    }
+    return translated_inst;
 }
 
 translator::~translator() {
