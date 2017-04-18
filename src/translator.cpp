@@ -1,4 +1,5 @@
 #include "translator.h"
+#include <iostream>
 
 translator::translator() {
     registers_map["%eax"] = "$t0";
@@ -11,15 +12,15 @@ translator::translator() {
 
 string translator::translate_IA32_to_MIPS(parser parser) {
     string output = "";
-    for (vector<block*>::iterator b_iter = parser.get_code_blocks().begin(); 
-        b_iter != parser.get_code_blocks().end(); b_iter++) {
+	vector<block*> blocks = parser.get_code_blocks();
+    for (auto b_iter = blocks.begin(); b_iter != blocks.end(); b_iter++) {
         if ((*b_iter) -> get_label() != "") { // add procedure head
             output += ".globl " + (*b_iter) -> get_label() + "\n";
             output += ".ent " + (*b_iter) -> get_label() + "\n";
             output += (*b_iter) -> get_label() + ":\n";
         }
-        for (vector<instruction*>::iterator i_iter = (*b_iter) -> get_instructions().begin(); 
-            i_iter != (*b_iter) -> get_instructions().end(); i_iter++) {
+		vector<instruction*> instructions = (*b_iter) -> get_instructions();
+        for (auto i_iter = instructions.begin(); i_iter != instructions.end(); i_iter++) {
             string translated_insts = "";
             if ((*i_iter) -> get_op() == "movl") {
                 translated_insts += translate_movl((*i_iter));
@@ -42,13 +43,13 @@ string translator::translate_IA32_to_MIPS(parser parser) {
             } else if ((*i_iter) -> get_op() == "orl") {
                 translated_insts += translate_orl((*i_iter));
             } else if ((*i_iter) -> get_op() == "incl") {
-
+                translated_insts += translate_incl((*i_iter));
             } else if ((*i_iter) -> get_op() == "decl") {
-
+                translated_insts += translate_decl((*i_iter));
             } else if ((*i_iter) -> get_op() == "negl") {
-
+                translated_insts += translate_negl((*i_iter));
             } else if ((*i_iter) -> get_op() == "notl") {
-
+                translated_insts += translate_notl((*i_iter));
             } 
             output += translated_insts + "\n";
         }
@@ -57,6 +58,8 @@ string translator::translate_IA32_to_MIPS(parser parser) {
         }
         output += "\n";
     }
+
+	cout << output << endl;
 }
 
 string translator::translate_movl(instruction* inst) {

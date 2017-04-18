@@ -5,10 +5,10 @@ instruction::instruction(string op, string operand1, string operand2) :
 	op(op), operand1(operand1), operand2(operand2) {}
 
 instruction::instruction(string op, string operand1) :
-	op(op), operand1(operand1), operand2(NULL) {}
+	op(op), operand1(operand1), operand2("") {}
 
 instruction::instruction(string op) : 
-	op(op), operand1(NULL), operand2(NULL) {}
+	op(op), operand1(""), operand2("") {}
 	
 string instruction::get_op() {
 	return op;

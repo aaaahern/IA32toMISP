@@ -39,7 +39,7 @@ bool parser::is_label(string line) {
 string parser::get_label(string line) {
 	size_t column_pos = line.find(":");
 	if (column_pos == string::npos) {
-		return NULL;
+		return "";
 	} else {
 		return line.substr(0, column_pos);
 	}
