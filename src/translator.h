@@ -13,8 +13,10 @@ class translator {
 private:
     unordered_map<string, string> registers_map;
 
-    /** helper method **/
+    /** helper functions **/
     string translate_movl(instruction*);
+    string translate_addl(instruction*);
+    string translate_subl(instruction*);
 
 public:
     translator();

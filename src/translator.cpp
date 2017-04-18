@@ -24,9 +24,9 @@ string translator::translate_IA32_to_MIPS(parser parser) {
             if ((*i_iter) -> get_op() == "movl") {
                 translated_insts += translate_movl((*i_iter));
             } else if ((*i_iter) -> get_op() == "addl") {
-
+                translated_insts += translate_addl((*i_iter));
             } else if ((*i_iter) -> get_op() == "subl") {
-
+                translated_insts += translate_subl((*i_iter));
             } else if ((*i_iter) -> get_op() == "imull") {
 
             } else if ((*i_iter) -> get_op() == "sall" || (*i_iter) -> get_op() == "shll" ) {
@@ -102,6 +102,66 @@ string translator::translate_movl(instruction* inst) {
             string src_register = inst -> get_operand1().substr(i+1, j-i-1);
             translated_inst = "lw " + registers_map[inst -> get_operand2()] + ", " + 
                 offset + "(" + src_register + ")";
+        } else {
+            isWrongInst = true;
+        }
+    } else {
+        isWrongInst = true;
+    }
+    if (isWrongInst) {
+        return "Wrong input instruction.";
+    }
+    return translated_inst;
+}
+
+string translator::translate_addl(instruction* inst) {
+    bool isWrongInst = false;
+    string translated_inst;
+    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
+        isWrongInst = true;
+    }
+    if (inst -> get_operand1().at(0) == '%') { // first operand is register
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            translated_inst = "add " + registers_map[inst -> get_operand2()] + ", " + 
+                registers_map[inst -> get_operand2()] + ", " + registers_map[inst -> get_operand1()];
+        } else {
+            isWrongInst = true;
+        }
+    } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
+            translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
+                registers_map[inst -> get_operand2()] + ", " + immediate;
+        } else {
+            isWrongInst = true;
+        }
+    } else {
+        isWrongInst = true;
+    }
+    if (isWrongInst) {
+        return "Wrong input instruction.";
+    }
+    return translated_inst;
+}
+
+string translator::translate_subl(instruction* inst) {
+    bool isWrongInst = false;
+    string translated_inst;
+    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
+        isWrongInst = true;
+    }
+    if (inst -> get_operand1().at(0) == '%') { // first operand is register
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            translated_inst = "sub " + registers_map[inst -> get_operand2()] + ", " + 
+                registers_map[inst -> get_operand2()] + ", " + registers_map[inst -> get_operand1()];
+        } else {
+            isWrongInst = true;
+        }
+    } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
+        if (inst -> get_operand2().at(0) == '%') { // second operand is register
+            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
+            translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
+                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
         } else {
             isWrongInst = true;
         }
