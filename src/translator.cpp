@@ -159,11 +159,12 @@ string translator::translate_call_with_arguments(vector<instruction*> instructio
 
 string translator::translate_pushl(instruction* inst) {
 	string operand = inst->get_operand1();
-		
+	string immediate = operand.substr(1, operand.length()-1);
+    
 	string translated_inst = "addi $sp, $sp, -4\n";
 
 	if (is_immediate(operand)) {
-		translated_inst += "li " + registers_map["temp"] + ", " + operand + "\n";
+		translated_inst += "li " + registers_map["temp"] + ", " + immediate + "\n";
 		translated_inst += "sw " + registers_map["temp"] + ", 0($sp)\n";
 	} else if (is_register(operand)) {
 		translated_inst += "sw " + operand + ", 0($sp)\n";
