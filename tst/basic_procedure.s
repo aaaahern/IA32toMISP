@@ -1,5 +1,5 @@
 main:
-	pushl %EBP
+	pushl %ebp
 	movl %esp, %ebp
 	movl $1, %eax
 	pushl $1
