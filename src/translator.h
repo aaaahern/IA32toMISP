@@ -35,6 +35,8 @@ private:
 	string translate_popl(instruction* inst);
 	string translate_call(instruction* inst);
 	string translate_call_with_arguments(vector<instruction*> instructions, int argument_count);
+	string translate_jmp(instruction* inst);
+	string translate_cmpl_j(instruction* cmpl_inst, instruction* j_inst);
 
 	string translate_procedure_head();
 	string translate_procedure_end();

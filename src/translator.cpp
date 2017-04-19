@@ -107,6 +107,12 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 			} else if (op == "call") {
 				translated_insts += translate_call(instr);
 				i_iter++;
+			} else if (op == "cmpl") {
+				instruction* cmpl_inst = instr;
+				i_iter++;
+				instruction* j_inst = *i_iter;
+				i_iter++;
+				translated_insts += translate_cmpl_j(cmpl_inst, j_inst);
 			}
 
             output += translated_insts;
@@ -565,6 +571,34 @@ string translator::translate_notl(instruction* inst) {
         return WRONG_INSTRUCTION_MESG;
     }
     return translated_inst + "\n";
+}
+
+string translator::translate_jmp(instruction* inst) {
+	return "b " + inst->get_operand1() + "\n";
+}
+
+string translator::translate_cmpl_j(instruction* cmpl_inst, instruction* j_inst) {
+	string Rsrc1 = cmpl_inst->get_operand2();
+	string src2 = cmpl_inst->get_operand1();
+	string j_label = j_inst->get_operand1();
+	string j_op = j_inst->get_op();
+	string translated_inst = "";
+
+	if (j_op == "je") {
+		translated_inst += "beq " + Rsrc1 + ", " + src2 + ", " + j_label;
+	} else if (j_op == "jne") {
+		translated_inst += "bne " + Rsrc1 + ", " + src2 + ", " + j_label;
+	} else if (j_op == "jl") {
+		translated_inst += "bgt " + Rsrc1 + ", " + src2 + ", " + j_label;
+	} else if (j_op == "jle") {
+		translated_inst += "bge " + Rsrc1 + ", " + src2 + ", " + j_label;
+	} else if (j_op == "jg") {
+		translated_inst += "blt " + Rsrc1 + ", " + src2 + ", " + j_label;
+	} else if (j_op == "jge") {
+		translated_inst += "ble " + Rsrc1 + ", " + src2 + ", " + j_label;
+	}
+
+	return translated_inst += "\n";
 }
 
 bool translator::is_immediate(string operand) {
