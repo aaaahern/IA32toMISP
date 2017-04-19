@@ -1,6 +1,7 @@
 #include "parser.h"
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 parser::parser(string file_name) {
 	ifstream infile(file_name);
@@ -9,6 +10,7 @@ parser::parser(string file_name) {
 
 	while (getline(infile, buffer)) {
 		buffer = filter_comment(buffer);
+		transform(buffer.begin(), buffer.end(), buffer.begin(), ::tolower);
 
 		// new block, and update current_block pointer
 		if (is_label(buffer)) {

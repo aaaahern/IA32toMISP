@@ -8,53 +8,112 @@ translator::translator() {
     registers_map["%ebx"] = "$s0";
     registers_map["%esi"] = "$s1";
     registers_map["%edi"] = "$s2";
+	registers_map["temp"] = "$s7";
 }
 
 string translator::translate_IA32_to_MIPS(parser parser) {
     string output = "";
 	vector<block*> blocks = parser.get_code_blocks();
     for (auto b_iter = blocks.begin(); b_iter != blocks.end(); b_iter++) {
-        if ((*b_iter) -> get_label() != "") { // add procedure head
-            output += ".globl " + (*b_iter) -> get_label() + "\n";
-            output += ".ent " + (*b_iter) -> get_label() + "\n";
-            output += (*b_iter) -> get_label() + ":\n";
+		block* block = *b_iter;
+        if (block->get_label() != "") { // add procedure head label
+            output += ".globl " + block->get_label() + "\n";
+            output += ".ent " + block->get_label() + "\n";
+            output += block->get_label() + ":\n";
         }
-		vector<instruction*> instructions = (*b_iter) -> get_instructions();
-        for (auto i_iter = instructions.begin(); i_iter != instructions.end(); i_iter++) {
+
+		vector<instruction*> instructions = block->get_instructions();
+        for (auto i_iter = instructions.begin(); i_iter != instructions.end(); ) {
             string translated_insts = "";
-            if ((*i_iter) -> get_op() == "movl") {
-                translated_insts += translate_movl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "addl") {
-                translated_insts += translate_addl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "subl") {
-                translated_insts += translate_subl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "imull") {
-                translated_insts += translate_imull((*i_iter));
-            } else if ((*i_iter) -> get_op() == "sall" || (*i_iter) -> get_op() == "shll" ) {
-                translated_insts += translate_sall_or_shll((*i_iter));
-            } else if ((*i_iter) -> get_op() == "sarl") {
-                translated_insts += translate_sarl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "shrl") {
-                translated_insts += translate_shrl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "xorl") {
-                translated_insts += translate_xorl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "andl") {
-                translated_insts += translate_andl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "orl") {
-                translated_insts += translate_orl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "incl") {
-                translated_insts += translate_incl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "decl") {
-                translated_insts += translate_decl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "negl") {
-                translated_insts += translate_negl((*i_iter));
-            } else if ((*i_iter) -> get_op() == "notl") {
-                translated_insts += translate_notl((*i_iter));
-            } 
-            output += translated_insts + "\n";
+			instruction* instr = *i_iter;
+			string op = instr->get_op();
+
+            if (op == "movl") {
+                translated_insts += translate_movl(instr);
+				i_iter++;
+            } else if (op == "addl") {
+                translated_insts += translate_addl(instr);
+				i_iter++;
+            } else if (op == "subl") {
+                translated_insts += translate_subl(instr);
+				i_iter++;
+            } else if (op == "imull") {
+                translated_insts += translate_imull(instr);
+				i_iter++;
+            } else if (op == "sall" || op == "shll" ) {
+                translated_insts += translate_sall_or_shll(instr);
+				i_iter++;
+            } else if (op == "sarl") {
+                translated_insts += translate_sarl(instr);
+				i_iter++;
+            } else if (op == "shrl") {
+                translated_insts += translate_shrl(instr);
+				i_iter++;
+            } else if (op == "xorl") {
+                translated_insts += translate_xorl(instr);
+				i_iter++;
+            } else if (op == "andl") {
+                translated_insts += translate_andl(instr);
+				i_iter++;
+            } else if (op == "orl") {
+                translated_insts += translate_orl(instr);
+				i_iter++;
+            } else if (op == "incl") {
+                translated_insts += translate_incl(instr);
+				i_iter++;
+            } else if (op == "decl") {
+                translated_insts += translate_decl(instr);
+				i_iter++;
+            } else if (op == "negl") {
+                translated_insts += translate_negl(instr);
+				i_iter++;
+            } else if (op == "notl") {
+                translated_insts += translate_notl(instr);
+				i_iter++;
+            } else if (op == "pushl") {
+				if (instr->get_operand1() == "%ebp") {
+					// procedure head setup
+					translated_insts += translate_procedure_head();
+					i_iter++;
+					i_iter++;
+				} else {
+					vector<instruction*> inst_buffer;
+					int argument_count = 0;
+
+					while (i_iter != instructions.end() && (*i_iter)->get_op() == "pushl") {
+						inst_buffer.push_back(*i_iter);
+						i_iter++;
+						argument_count++;
+					}
+
+					if (i_iter != instructions.end() && (*i_iter)->get_op() == "call") {
+						// procedure arguments
+						inst_buffer.push_back(*i_iter);
+						i_iter++;
+						translated_insts += translate_call_with_arguments(inst_buffer, argument_count);
+					} else {
+						// normal pushl
+						translated_insts += translate_batch_pushl(inst_buffer);
+					}
+				}
+			} else if (op == "popl") {
+				translated_insts += translate_popl(instr);
+				instr++;
+            } else if (op == "leave") {
+				// procedure end setup
+				translated_insts += translate_procedure_end();
+				i_iter++;
+				i_iter++;
+			} else if (op == "call") {
+				translated_insts += translate_call(instr);
+				i_iter++;
+			}
+
+            output += translated_insts;
         }
-        if ((*b_iter) -> get_label() != "") { // add procedure end
-            output += ".end " + (*b_iter) -> get_label() + "\n";
+
+        if (block->get_label() != "") { // add procedure end label
+            output += ".end " + block->get_label() + "\n";
         }
         output += "\n";
     }
@@ -62,9 +121,69 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 	cout << output << endl;
 }
 
+string translator::translate_procedure_head() {
+	return "addi $sp, $sp, -4\nsw $ra, 0($sp)\n";
+}
+
+string translator::translate_procedure_end() {
+	return "lw $ra, 0($sp)\naddi $sp, $sp, 4\njr $ra\n";
+}
+
+string translator::translate_call(instruction* inst) {
+	return "jal " + inst->get_operand1() + "\n";
+}
+
+string translator::translate_call_with_arguments(vector<instruction*> instructions, int argument_count) {
+	string translated_inst = "";
+
+	int i = 0;
+	for (; i < argument_count; i++) {
+		translated_inst += translate_pushl(instructions[i]);
+	}
+
+	// last instruction is "call"
+	translated_inst += translate_call(instructions[i]);
+
+	for (; i > 0; i--) {
+		translated_inst += "addi $sp, $sp, 4\n";
+	}
+
+	return translated_inst;
+}
+
+string translator::translate_pushl(instruction* inst) {
+	string operand = inst->get_operand1();
+		
+	string translated_inst = "addi $sp, $sp, -4\n";
+
+	if (is_immediate(operand)) {
+		translated_inst += "li " + registers_map["temp"] + ", " + operand + "\n";
+		translated_inst += "sw " + registers_map["temp"] + ", 0($sp)\n";
+	} else if (is_register(operand)) {
+		translated_inst += "sw " + operand + ", 0($sp)\n";
+	} else {
+		return WRONG_INSTRUCTION_MESG;
+	}
+	return translated_inst;
+}
+
+string translator::translate_batch_pushl(vector<instruction*> instructions) {
+	string translated_inst = "";
+	for (auto iter = instructions.begin(); iter != instructions.end(); iter++) {
+		translated_inst += translate_pushl(*iter);
+	}
+	return translated_inst;
+}
+
+string translator::translate_popl(instruction* inst) {
+	return "lw " + inst->get_operand1() + ", 0($sp)\n" 
+		+ "addi $sp, $sp, 4\n";
+}
+
 string translator::translate_movl(instruction* inst) {
     bool isWrongInst = false;
     string translated_inst;
+
     if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
         isWrongInst = true;
     }
@@ -112,9 +231,9 @@ string translator::translate_movl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_addl(instruction* inst) {
@@ -142,9 +261,9 @@ string translator::translate_addl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_subl(instruction* inst) {
@@ -172,9 +291,9 @@ string translator::translate_subl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_imull(instruction* inst) {
@@ -205,9 +324,9 @@ string translator::translate_imull(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_sall_or_shll(instruction* inst) {
@@ -235,9 +354,9 @@ string translator::translate_sall_or_shll(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_sarl(instruction* inst) {
@@ -258,9 +377,9 @@ string translator::translate_sarl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_shrl(instruction* inst) {
@@ -281,9 +400,9 @@ string translator::translate_shrl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_xorl(instruction* inst) {
@@ -311,9 +430,9 @@ string translator::translate_xorl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_andl(instruction* inst) {
@@ -341,9 +460,9 @@ string translator::translate_andl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_orl(instruction* inst) {
@@ -371,9 +490,9 @@ string translator::translate_orl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_incl(instruction* inst) {
@@ -389,9 +508,9 @@ string translator::translate_incl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_decl(instruction* inst) {
@@ -407,9 +526,9 @@ string translator::translate_decl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_negl(instruction* inst) {
@@ -425,9 +544,9 @@ string translator::translate_negl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
 }
 
 string translator::translate_notl(instruction* inst) {
@@ -443,9 +562,17 @@ string translator::translate_notl(instruction* inst) {
         isWrongInst = true;
     }
     if (isWrongInst) {
-        return "Wrong input instruction.";
+        return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst;
+    return translated_inst + "\n";
+}
+
+bool translator::is_immediate(string operand) {
+	return operand.size() > 0 && operand.at(0) == '$';
+}
+
+bool translator::is_register(string operand) {
+	return operand.size() > 0 && operand.at(0) == '%';
 }
 
 translator::~translator() {
