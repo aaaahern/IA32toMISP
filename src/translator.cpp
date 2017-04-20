@@ -8,6 +8,8 @@ translator::translator() {
     registers_map["%ebx"] = "$s0";
     registers_map["%esi"] = "$s1";
     registers_map["%edi"] = "$s2";
+    registers_map["%esp"] = "$sp";
+    registers_map["%ebp"] = "$fp";
 	registers_map["temp"] = "$s7";
 }
 
@@ -239,7 +241,7 @@ string translator::translate_movl(instruction* inst) {
             string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
             string temp_register = "$s7"; // use $s7 as a temp register
             translated_inst = "li" + temp_register + "," + immediate + "\n" + 
-                "sw " + temp_register + "," + offset + "(" + dst_register + ")"; 
+                "sw " + temp_register + "," + offset + "(" + registers_map[dst_register] + ")"; 
         } else {
             is_wrong_inst = true;
         }
@@ -250,7 +252,7 @@ string translator::translate_movl(instruction* inst) {
             string offset = inst -> get_operand1().substr(0, i);
             string src_register = inst -> get_operand1().substr(i+1, j-i-1);
             translated_inst = "lw " + registers_map[inst -> get_operand2()] + ", " + 
-                offset + "(" + src_register + ")";
+                offset + "(" + registers_map[src_register] + ")";
         } else {
             is_wrong_inst = true;
         }
@@ -277,10 +279,17 @@ string translator::translate_addl(instruction* inst) {
             is_wrong_inst = true;
         }
     } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
+        string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
                 registers_map[inst -> get_operand2()] + ", " + immediate;
+        } else if (inst -> get_operand2().at(0) == '(' || isdigit(inst -> get_operand2().at(0))) {
+            int i = inst -> get_operand2().find("(");
+            int j = inst -> get_operand2().find(")");
+            string offset = inst -> get_operand2().substr(0, i);
+            string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
+            translated_inst = "add $t5, $zero, " + immediate + "\n" + 
+                "sw " + "$t5 " + offset + "(" + registers_map[dst_register] + ")";
         } else {
             is_wrong_inst = true;
         }
@@ -309,8 +318,14 @@ string translator::translate_subl(instruction* inst) {
     } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-            translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+            if (immediate.at(0) == '-') {
+                immediate = immediate.substr(1, immediate.length() - 1 );
+                translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
+                    registers_map[inst -> get_operand2()] + ", " + immediate;
+            } else {
+                translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
+                    registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+            }
         } else {
             is_wrong_inst = true;
         }
@@ -373,7 +388,7 @@ string translator::translate_sall_or_shll(instruction* inst) {
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "sll " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+                registers_map[inst -> get_operand2()] + ", " + immediate;
         } else {
             is_wrong_inst = true;
         }
@@ -396,7 +411,7 @@ string translator::translate_sarl(instruction* inst) {
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "sra " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+                registers_map[inst -> get_operand2()] + ", " + immediate;
         } else {
             is_wrong_inst = true;
         }
@@ -419,7 +434,7 @@ string translator::translate_shrl(instruction* inst) {
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "srl " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+                registers_map[inst -> get_operand2()] + ", " + immediate;
         } else {
             is_wrong_inst = true;
         }
@@ -449,7 +464,7 @@ string translator::translate_xorl(instruction* inst) {
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "xori " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+                registers_map[inst -> get_operand2()] + ", " + immediate;
         } else {
             is_wrong_inst = true;
         }
@@ -479,7 +494,7 @@ string translator::translate_andl(instruction* inst) {
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "andi " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+                registers_map[inst -> get_operand2()] + ", " + immediate;
         } else {
             is_wrong_inst = true;
         }
@@ -509,7 +524,7 @@ string translator::translate_orl(instruction* inst) {
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
             translated_inst = "ori " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
+                registers_map[inst -> get_operand2()] + ", " + immediate;
         } else {
             is_wrong_inst = true;
         }
