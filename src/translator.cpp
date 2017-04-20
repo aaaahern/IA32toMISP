@@ -138,11 +138,23 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 }
 
 string translator::translate_procedure_head() {
-	return "addi $sp, $sp, -4\nsw $ra, 0($sp)\n";
+	string translated_inst = "";
+	translated_inst += "addi $sp, $sp, -8\n";
+	translated_inst += "sw $ra, 4($sp)\n";
+	translated_inst += "sw $fp, 0($sp)\n";
+	translated_inst += "addi $fp, $sp, 4\n";
+
+	return translated_inst;
 }
 
 string translator::translate_procedure_end() {
-	return "lw $ra, 0($sp)\naddi $sp, $sp, 4\njr $ra\n";
+	string translated_inst = "";
+	translated_inst += "lw $fp, 0($sp)\n";
+	translated_inst += "lw $ra, 4($sp)\n";
+	translated_inst += "addi $sp, $sp, 8\n";
+	translated_inst += "jr $ra\n";
+
+	return translated_inst;
 }
 
 string translator::translate_call(instruction* inst) {
@@ -160,9 +172,7 @@ string translator::translate_call_with_arguments(vector<instruction*> instructio
 	// last instruction is "call"
 	translated_inst += translate_call(instructions[i]);
 
-	for (; i > 0; i--) {
-		translated_inst += "addi $sp, $sp, 4\n";
-	}
+	translated_inst += "addi $sp, $sp, " + to_string(4 * argument_count) + "\n";
 
 	return translated_inst;
 }

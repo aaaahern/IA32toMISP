@@ -1,15 +1,15 @@
 main:
-	pushl %ebp
-	movl %esp, %ebp
-	movl $1, %eax
 	pushl $1
+	pushl $2
+	pushl $3
 	call func
-	leave
-	ret
+	movl %eax, %ebx
 
 func:
 	pushl %ebp
 	movl %esp, %ebp
-	movl $123, %ebx
+	movl 8(%ebp), %eax
+	addl 12(%ebp), %eax
+	addl 16(%ebp), %eax
 	leave
 	ret
