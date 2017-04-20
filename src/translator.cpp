@@ -268,31 +268,40 @@ string translator::translate_movl(instruction* inst) {
 string translator::translate_addl(instruction* inst) {
     bool is_wrong_inst = false;
     string translated_inst;
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
+    string operand1 = inst -> get_operand1();
+    string operand2 = inst -> get_operand2();
+    if (operand1 == "" || operand2 == "") {
         is_wrong_inst = true;
     }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "add " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + registers_map[inst -> get_operand1()];
+    if (operand1.at(0) == '%') { // first operand is register
+        if (operand2.at(0) == '%') { // second operand is register
+            translated_inst = "add " + registers_map[operand2] + ", " + 
+                registers_map[operand2] + ", " + registers_map[operand1];
         } else {
             is_wrong_inst = true;
         }
-    } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
-        string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + immediate;
-        } else if (inst -> get_operand2().at(0) == '(' || isdigit(inst -> get_operand2().at(0))) {
-            int i = inst -> get_operand2().find("(");
-            int j = inst -> get_operand2().find(")");
-            string offset = inst -> get_operand2().substr(0, i);
-            string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
+    } else if (operand1.at(0) == '$') {  // first operand is immediate
+        string immediate = operand1.substr(1, operand1.length()-1);
+        if (operand2.at(0) == '%') { // second operand is register
+            translated_inst = "addi " + registers_map[operand2] + ", " + 
+                registers_map[operand2] + ", " + immediate;
+        } else if (operand2.at(0) == '(' || isdigit(operand2.at(0))) { // second operand is address
+            int i = operand2.find("(");
+            int j = operand2.find(")");
+            string offset = operand2.substr(0, i);
+            string dst_register = operand2.substr(i+1, j-i-1);
             translated_inst = "add $t5, $zero, " + immediate + "\n" + 
                 "sw " + "$t5 " + offset + "(" + registers_map[dst_register] + ")";
         } else {
             is_wrong_inst = true;
         }
+    } else if (operand1.at(0) == '(' || isdigit(operand1.at(0))) { // first operand is address
+        int i = operand1.find("(");
+        int j = operand1.find(")");
+        string offset = operand1.substr(0, i);
+        string src_register = operand1.substr(i+1, j-i-1);
+        translated_inst = "lw $t5, " + offset + "(" + registers_map[src_register] + ")" + "\n" +
+            "add " + registers_map[operand2] + ", " + registers_map[operand2] + ", $t5";
     } else {
         is_wrong_inst = true;
     }
