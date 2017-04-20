@@ -104,7 +104,7 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 				}
 			} else if (op == "popl") {
 				translated_insts += translate_popl(instr);
-				instr++;
+				i_iter++;
             } else if (op == "leave") {
 				// procedure end setup
 				translated_insts += translate_procedure_end();
@@ -177,7 +177,7 @@ string translator::translate_pushl(instruction* inst) {
 		translated_inst += "li " + registers_map["temp"] + ", " + immediate + "\n";
 		translated_inst += "sw " + registers_map["temp"] + ", 0($sp)\n";
 	} else if (is_register(operand)) {
-		translated_inst += "sw " + operand + ", 0($sp)\n";
+		translated_inst += "sw " + registers_map[operand] + ", 0($sp)\n";
 	} else {
 		return WRONG_INSTRUCTION_MESG;
 	}
@@ -193,7 +193,7 @@ string translator::translate_batch_pushl(vector<instruction*> instructions) {
 }
 
 string translator::translate_popl(instruction* inst) {
-	return "lw " + inst->get_operand1() + ", 0($sp)\n" 
+	return "lw " + registers_map[inst->get_operand1()] + ", 0($sp)\n" 
 		+ "addi $sp, $sp, 4\n";
 }
 
@@ -207,7 +207,7 @@ string translator::translate_movl(instruction* inst) {
     if (inst -> get_operand1().at(0) == '%') { // first operand is register
         if (inst -> get_operand2().at(0) == '%') { // second operand is register
             translated_inst = "add " + registers_map[inst -> get_operand2()] + 
-                ", $zero" + registers_map[inst -> get_operand1()];
+                ", $zero, " + registers_map[inst -> get_operand1()];
         } else if (isdigit(inst -> get_operand2().at(0)) || inst -> get_operand2().at(0) == '(') { // second operand is address
             int i = inst -> get_operand2().find("(");
             int j = inst -> get_operand2().find(")");

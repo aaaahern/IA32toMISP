@@ -6,8 +6,8 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        cout << "Usage: ia32";
+    if (argc < 3) {
+        cout << "Usage: IA32toMISP path_to_input path_to_output" << endl;
         return -1;
     }
     // TODO transfer all upper-case letters
