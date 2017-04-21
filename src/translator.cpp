@@ -144,7 +144,7 @@ string translator::translate_procedure_head() {
 	translated_inst += "addi $sp, $sp, -8\n";
 	translated_inst += "sw $ra, 4($sp)\n";
 	translated_inst += "sw $fp, 0($sp)\n";
-	translated_inst += "addi $fp, $sp, 4\n";
+	translated_inst += "addi $fp, $sp, 0\n";
 
 	return translated_inst;
 }

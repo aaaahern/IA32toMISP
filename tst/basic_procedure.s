@@ -1,9 +1,13 @@
 main:
-	pushl $1
-	pushl $2
+	pushl %ebp
+	movl %esp, %ebp
+	pushl $3
+	pushl $3
 	pushl $3
 	call func
 	movl %eax, %ebx
+	leave
+	ret
 
 func:
 	pushl %ebp
