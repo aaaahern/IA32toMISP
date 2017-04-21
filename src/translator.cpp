@@ -15,6 +15,9 @@ translator::translator() {
 
 string translator::translate_IA32_to_MIPS(parser parser) {
     string output = "";
+    // TODO translate .data
+
+    output += ".text\n";
 	vector<block*> blocks = parser.get_code_blocks();
     bool is_procedure_head = true;
     string procedure_name;
@@ -142,9 +145,9 @@ string translator::translate_procedure_head() {
 
 string translator::translate_procedure_end() {
 	string translated_inst = "";
-	translated_inst += "lw $fp, 0($sp)\n";
-	translated_inst += "lw $ra, 4($sp)\n";
-	translated_inst += "addi $sp, $sp, 8\n";
+	translated_inst += "lw $fp, 0($fp)\n";
+	translated_inst += "lw $ra, 4($fp)\n";
+	translated_inst += "add $sp, $fp, 8\n";
 	translated_inst += "jr $ra\n";
 
 	return translated_inst;
@@ -260,6 +263,7 @@ string translator::translate_addl_andl_xorl_orl(instruction* inst) {
     bool is_wrong_inst = false;
     string translated_inst;
     string op = inst -> get_op();
+    op = op.substr(0, op.length()-1);
     string operand1 = inst -> get_operand1();
     string operand2 = inst -> get_operand2();
     if (operand1 == "" || operand2 == "") {
