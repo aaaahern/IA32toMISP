@@ -17,15 +17,12 @@ private:
 
     /** instruction translation functions **/
     string translate_movl(instruction* inst);
-    string translate_addl(instruction* inst);
+    string translate_addl_andl_xorl_orl(instruction* inst);
     string translate_subl(instruction* inst);
     string translate_imull(instruction* inst);
     string translate_sall_or_shll(instruction* inst);
     string translate_sarl(instruction* inst);
     string translate_shrl(instruction* inst);
-    string translate_xorl(instruction* inst);
-    string translate_andl(instruction* inst);
-    string translate_orl(instruction* inst);
     string translate_incl(instruction* inst);
     string translate_decl(instruction* inst);
     string translate_negl(instruction* inst);
