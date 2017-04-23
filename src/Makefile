@@ -1,6 +1,6 @@
 appname := IA32toMISP
 
-CXX := g++
+CXX := clang++
 CXXFLAGS := -std=c++11 -g
 
 srcfiles := $(shell find . -name "*.cpp")

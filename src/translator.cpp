@@ -1,5 +1,7 @@
 #include "translator.h"
 #include <iostream>
+#include <algorithm>
+#include <sstream>
 
 translator::translator() {
     registers_map["%eax"] = "$t0";
@@ -11,6 +13,8 @@ translator::translator() {
     registers_map["%esp"] = "$sp";
     registers_map["%ebp"] = "$fp";
 	registers_map["temp"] = "$s7";
+	registers_map["addressing_result"] = "$s6";
+	registers_map["zero"] = "$zero";
 }
 
 string translator::translate_IA32_to_MIPS(parser parser) {
@@ -135,26 +139,26 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 
 string translator::translate_procedure_head() {
 	string translated_inst = "";
-	translated_inst += "addi $sp, $sp, -8\n";
-	translated_inst += "sw $ra, 4($sp)\n";
-	translated_inst += "sw $fp, 0($sp)\n";
-	translated_inst += "addi $fp, $sp, 0\n";
+	translated_inst += instruction::to_string(1, "addi", {"$sp", "$sp", "-8"});
+	translated_inst += instruction::to_string(1, "sw", {"$ra", "4($sp)"});
+	translated_inst += instruction::to_string(1, "sw", {"$fp", "0($sp)"});
+	translated_inst += instruction::to_string(1, "addi", {"$fp", "$sp", "0"});
 
 	return translated_inst;
 }
 
 string translator::translate_procedure_end() {
 	string translated_inst = "";
-	translated_inst += "lw $fp, 0($fp)\n";
-	translated_inst += "lw $ra, 4($fp)\n";
-	translated_inst += "add $sp, $fp, 8\n";
-	translated_inst += "jr $ra\n";
+	translated_inst += instruction::to_string(1, "lw", {"$fp", "0($sp)"});
+	translated_inst += instruction::to_string(1, "lw", {"$ra", "4($sp)"});
+	translated_inst += instruction::to_string(1, "add", {"$sp", "$sp", "8"});
+	translated_inst += instruction::to_string(1, "jr", {"$ra"});
 
 	return translated_inst;
 }
 
 string translator::translate_call(instruction* inst) {
-	return "jal " + inst->get_operand1() + "\n";
+	return instruction::to_string(1, "jal", {inst->get_operand1()});
 }
 
 string translator::translate_call_with_arguments(vector<instruction*> instructions, int argument_count) {
@@ -168,7 +172,7 @@ string translator::translate_call_with_arguments(vector<instruction*> instructio
 	// last instruction is "call"
 	translated_inst += translate_call(instructions[i]);
 
-	translated_inst += "addi $sp, $sp, " + to_string(4 * argument_count) + "\n";
+	translated_inst += instruction::to_string(1, "addi", {"$sp", "$sp", to_string(4 * argument_count)});
 
 	return translated_inst;
 }
@@ -177,13 +181,13 @@ string translator::translate_pushl(instruction* inst) {
 	string operand = inst->get_operand1();
 	string immediate = operand.substr(1, operand.length()-1);
 
-	string translated_inst = "addi $sp, $sp, -4\n";
+	string translated_inst = instruction::to_string(1, "addi", {"$sp", "$sp", "-4"});
 
 	if (is_immediate(operand)) {
-		translated_inst += "li " + registers_map["temp"] + ", " + immediate + "\n";
-		translated_inst += "sw " + registers_map["temp"] + ", 0($sp)\n";
+		translated_inst += instruction::to_string(1, "li", {registers_map["temp"], immediate});
+		translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], "0($sp)"});
 	} else if (is_register(operand)) {
-		translated_inst += "sw " + registers_map[operand] + ", 0($sp)\n";
+		translated_inst += instruction::to_string(1, "sw", {registers_map[operand], "0($sp)"});
 	} else {
 		return WRONG_INSTRUCTION_MESG;
 	}
@@ -199,54 +203,86 @@ string translator::translate_batch_pushl(vector<instruction*> instructions) {
 }
 
 string translator::translate_popl(instruction* inst) {
-	return "lw " + registers_map[inst->get_operand1()] + ", 0($sp)\n" 
-		+ "addi $sp, $sp, 4\n";
+	string translated_inst = "";
+	translated_inst += instruction::to_string(1, "lw", {registers_map[inst->get_operand1()], "0($sp)"});
+	translated_inst += instruction::to_string(1, "addi", {"$sp", "$sp", "4"});
+	return translated_inst;
 }
 
 string translator::translate_movl(instruction* inst) {
     bool is_wrong_inst = false;
-    string translated_inst;
+    string translated_inst = "";
+	string operand1 = inst->get_operand1();
+	string operand2 = inst->get_operand2();
 
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
+    if (operand1 == "" || operand2 == "") {
         is_wrong_inst = true;
     }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "add " + registers_map[inst -> get_operand2()] + 
-                ", $zero, " + registers_map[inst -> get_operand1()];
-        } else if (isdigit(inst -> get_operand2().at(0)) || inst -> get_operand2().at(0) == '(') { // second operand is address
-            int i = inst -> get_operand2().find("(");
-            int j = inst -> get_operand2().find(")");
-            string offset = inst -> get_operand2().substr(0, i);
-            string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
-            translated_inst = "sw " + registers_map[inst -> get_operand1()] + ", " + 
-                offset + "(" + registers_map[dst_register] + ")";
+
+    if (is_register(operand1)) { // first operand is register
+        if (is_register(operand2)) { // second operand is register
+			translated_inst += instruction::to_string(1, "add", {registers_map[operand2], registers_map["zero"], registers_map[operand1]});
+        } else if (is_indirect(operand2)) { // second operand is indirect
+			translated_inst += instruction::to_string(1, "sw", {registers_map[operand1], map_indirect(operand2)});
+		} else if (is_absolute(operand2)) {
+			string new_operand2 = address_absolute(translated_inst, operand2);
+			translated_inst += instruction::to_string(1, "sw", {registers_map[operand1], new_operand2});
+		} else if (is_indexed(operand2)) {
+			string new_operand2 = address_indexed(translated_inst, operand2);
+			translated_inst += instruction::to_string(1, "sw", {registers_map[operand1], new_operand2});
+		} else if (is_scaled_indexed(operand2)) {
+			string new_operand2 = address_scaled_indexed(translated_inst, operand2);
+			translated_inst += instruction::to_string(1, "sw", {registers_map[operand1], new_operand2});
         } else {
             is_wrong_inst = true;
         }
-    } else if (inst -> get_operand1().at(0) == '$') { // first operand is immediate
-        string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "li " + registers_map[inst -> get_operand2()] + ", " + immediate;
-        } else if (isdigit(inst -> get_operand2().at(0))) { // second operand is address
-            int i = inst -> get_operand2().find("(");
-            int j = inst -> get_operand2().find(")");
-            string offset = inst -> get_operand2().substr(0, i);
-            string dst_register = inst -> get_operand2().substr(i+1, j-i-1);
-            string temp_register = "$s7"; // use $s7 as a temp register
-            translated_inst = "li" + temp_register + "," + immediate + "\n" + 
-                "sw " + temp_register + "," + offset + "(" + registers_map[dst_register] + ")"; 
+    } else if (is_immediate(operand1)) { // first operand is immediate
+        string immediate = map_immediate(operand1);
+
+        if (is_register(operand2)) { // second operand is register
+			translated_inst += instruction::to_string(1, "li", {registers_map[operand2], immediate});
+        } else if (is_indirect(operand2)) { // second operand is indirect
+			translated_inst += instruction::to_string(1, "li", {registers_map["temp"], immediate});
+			translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], map_indirect(operand2)});
+        } else if (is_absolute(operand2)) { 
+			string new_operand2 = address_absolute(translated_inst, operand2);
+			translated_inst += instruction::to_string(1, "li", {registers_map["temp"], immediate});
+			translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], new_operand2});
+        } else if (is_indexed(operand2)) {
+			string new_operand2 = address_indexed(translated_inst, operand2);
+			translated_inst += instruction::to_string(1, "li", {registers_map["temp"], immediate});
+			translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], new_operand2});
+        } else if (is_scaled_indexed(operand2)) {
+			string new_operand2 = address_scaled_indexed(translated_inst, operand2);
+			translated_inst += instruction::to_string(1, "li", {registers_map["temp"], immediate});
+			translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], new_operand2});
         } else {
             is_wrong_inst = true;
         }
-    } else if (isdigit(inst -> get_operand1().at(0))) { // first operand is address
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            int i = inst -> get_operand1().find("(");
-            int j = inst -> get_operand1().find(")");
-            string offset = inst -> get_operand1().substr(0, i);
-            string src_register = inst -> get_operand1().substr(i+1, j-i-1);
-            translated_inst = "lw " + registers_map[inst -> get_operand2()] + ", " + 
-                offset + "(" + registers_map[src_register] + ")";
+    } else if (is_indirect(operand1)) { // first operand is address
+        if (is_register(operand2)) { // second operand is register
+			translated_inst += instruction::to_string(1, "lw", {registers_map[operand2], map_indirect(operand1)});
+        } else {
+            is_wrong_inst = true;
+        }
+    } else if (is_absolute(operand1)) { 
+        if (is_register(operand2)) { // second operand is register
+			string new_operand1 = address_absolute(translated_inst, operand1);
+			translated_inst += instruction::to_string(1, "lw", {registers_map[operand2], new_operand1});
+        } else {
+            is_wrong_inst = true;
+        }
+    } else if (is_indexed(operand1)) { 
+        if (is_register(operand2)) { // second operand is register
+			string new_operand1 = address_indexed(translated_inst, operand1);
+			translated_inst += instruction::to_string(1, "lw", {registers_map[operand2], new_operand1});
+        } else {
+            is_wrong_inst = true;
+        }
+    } else if (is_scaled_indexed(operand1)) { 
+        if (is_register(operand2)) { // second operand is register
+			string new_operand1 = address_scaled_indexed(translated_inst, operand1);
+			translated_inst += instruction::to_string(1, "lw", {registers_map[operand2], new_operand1});
         } else {
             is_wrong_inst = true;
         }
@@ -256,307 +292,182 @@ string translator::translate_movl(instruction* inst) {
     if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
+    return translated_inst;
 }
 
 string translator::translate_addl_andl_xorl_orl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
     string op = inst -> get_op();
     op = op.substr(0, op.length()-1);
     string operand1 = inst -> get_operand1();
     string operand2 = inst -> get_operand2();
-    if (operand1 == "" || operand2 == "") {
-        is_wrong_inst = true;
-    }
-    if (operand1.at(0) == '%') { // first operand is register
-        if (operand2.at(0) == '%') { // second operand is register
-            translated_inst = op + " " + registers_map[operand2] + ", " + 
-                registers_map[operand2] + ", " + registers_map[operand1];
+
+    if (is_register(operand1) && is_register(operand2)) { 
+		return instruction::to_string(1, op, {registers_map[operand2], registers_map[operand2], registers_map[operand1]});
+    } else if (is_immediate(operand1)) {  
+        string immediate = map_immediate(operand1);
+        if (is_register(operand2)) { // second operand is register
+			return instruction::to_string(1, op + "i", {registers_map[operand2], registers_map[operand2], immediate});
+        } else if (is_indirect(operand2)) { // second operand is address
+			string new_operand2 = map_indirect(operand2);
+			string translated_inst;
+			translated_inst += instruction::to_string(1, op, {registers_map["temp"], registers_map["zero"], immediate});
+			translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], new_operand2});
+			return translated_inst;
         } else {
-            is_wrong_inst = true;
+			return WRONG_INSTRUCTION_MESG;
         }
-    } else if (operand1.at(0) == '$') {  // first operand is immediate
-        string immediate = operand1.substr(1, operand1.length()-1);
-        if (operand2.at(0) == '%') { // second operand is register
-            translated_inst = op + "i " + registers_map[operand2] + ", " + 
-                registers_map[operand2] + ", " + immediate;
-        } else if (operand2.at(0) == '(' || isdigit(operand2.at(0))) { // second operand is address
-            int i = operand2.find("(");
-            int j = operand2.find(")");
-            string offset = operand2.substr(0, i);
-            string dst_register = operand2.substr(i+1, j-i-1);
-            translated_inst = op + " $t5, $zero, " + immediate + "\n" + 
-                "sw " + "$t5 " + offset + "(" + registers_map[dst_register] + ")";
-        } else {
-            is_wrong_inst = true;
-        }
-    } else if (operand1.at(0) == '(' || isdigit(operand1.at(0))) { // first operand is address
-        int i = operand1.find("(");
-        int j = operand1.find(")");
-        string offset = operand1.substr(0, i);
-        string src_register = operand1.substr(i+1, j-i-1);
-        translated_inst = "lw $t5, " + offset + "(" + registers_map[src_register] + ")" + "\n" +
-            op + " " + registers_map[operand2] + ", " + registers_map[operand2] + ", $t5";
-    } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
+    } else if (is_indirect(operand1) && is_register(operand2)) { 
+		string new_operand1 = map_indirect(operand1);
+		string translated_inst;
+		translated_inst += instruction::to_string(1, "lw", {registers_map["temp"], new_operand1});
+		translated_inst += instruction::to_string(1, op, {registers_map[operand2], registers_map[operand2], registers_map["temp"]});
+		return translated_inst;
+	} else {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_subl(instruction* inst) {
-    bool is_wrong_inst = false;
     string translated_inst;
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "sub " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + registers_map[inst -> get_operand1()];
-        } else {
-            is_wrong_inst = true;
-        }
-    } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-            if (immediate.at(0) == '-') {
-                immediate = immediate.substr(1, immediate.length() - 1 );
-                translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
-                    registers_map[inst -> get_operand2()] + ", " + immediate;
-            } else {
-                translated_inst = "addi " + registers_map[inst -> get_operand2()] + ", " + 
-                    registers_map[inst -> get_operand2()] + ", " + "-" + immediate;
-            }
-        } else {
-            is_wrong_inst = true;
-        }
+	string operand1 = inst->get_operand1();
+	string operand2 = inst->get_operand2();
+    if (is_register(operand1) && is_register(operand2)) { 
+		return instruction::to_string(1, "sub", {registers_map[operand2], registers_map[operand2], registers_map[operand1]});
+    } else if (is_immediate(operand1) && is_register(operand2)) {
+        string immediate = map_immediate(operand1);
+		if (immediate.at(0) == '-') {
+			immediate = immediate.substr(1, immediate.length() - 1 );
+		} else {
+			immediate = "-" + immediate;
+		}
+		return instruction::to_string(1, "addi", {registers_map[operand2], registers_map[operand2], immediate});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_imull(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "mult " + registers_map[inst -> get_operand1()] + ", " + 
-                registers_map[inst -> get_operand2()] + "\n" + 
-                "mflo " + registers_map[inst -> get_operand2()];
-        } else {
-            is_wrong_inst = true;
-        }
-    } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-            string temp_register = "$s6";
-            translated_inst = "mult " + temp_register + ", " + "$zero" + ", " + immediate + "\n" +
-                "mult " + temp_register + ", " + registers_map[inst -> get_operand2()] + "\n" + 
-                "mflo " + registers_map[inst -> get_operand2()];
-        } else {
-            is_wrong_inst = true;
-        }
+	string operand1 = inst->get_operand1();
+	string operand2 = inst->get_operand2();
+	string translated_inst = "";
+    if (is_register(operand1) && is_register(operand2)) { 
+		translated_inst += instruction::to_string(1, "mult", {registers_map[operand1], registers_map[operand2]});
+		translated_inst += instruction::to_string(1, "mflo", {registers_map[operand2]});
+		return translated_inst;
+    } else if (is_immediate(operand1) && is_register(operand2)) { 
+		string immediate = map_immediate(operand1);
+		string temp_register = "$s6";
+		translated_inst += instruction::to_string(1, "addi", {temp_register, registers_map["zero"], immediate});
+		translated_inst += instruction::to_string(1, "mult", {temp_register, registers_map[operand2]});
+		translated_inst += instruction::to_string(1, "mflo", {registers_map[operand2]});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_sall_or_shll(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            translated_inst = "sllv " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + registers_map[inst -> get_operand1()];
-        } else {
-            is_wrong_inst = true;
-        }
-    } else if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-            translated_inst = "sll " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + immediate;
-        } else {
-            is_wrong_inst = true;
-        }
+	string operand1 = inst->get_operand1();
+	string operand2 = inst->get_operand2();
+    if (is_register(operand1) && is_register(operand2)) { 
+		return instruction::to_string(1, "sllv", {registers_map[operand2], registers_map[operand2], registers_map[operand1]});
+    } else if (is_immediate(operand1) && is_register(operand2)) {  
+		return instruction::to_string(1, "sll", {registers_map[operand2], registers_map[operand2], map_immediate(operand1)});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_sarl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-            translated_inst = "sra " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + immediate;
-        } else {
-            is_wrong_inst = true;
-        }
+	string operand1 = inst->get_operand1();
+	string operand2 = inst->get_operand2();
+    if (is_immediate(operand1) && is_register(operand2)) { 
+		string immediate = map_immediate(operand1);
+		return instruction::to_string(1, "sra", {registers_map[operand2], registers_map[operand2], immediate});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_shrl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "" || inst -> get_operand2() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '$') {  // first operand is immediate
-        if (inst -> get_operand2().at(0) == '%') { // second operand is register
-            string immediate = inst -> get_operand1().substr(1, inst -> get_operand1().length()-1);
-            translated_inst = "srl " + registers_map[inst -> get_operand2()] + ", " + 
-                registers_map[inst -> get_operand2()] + ", " + immediate;
-        } else {
-            is_wrong_inst = true;
-        }
+	string operand1 = inst->get_operand1();
+	string operand2 = inst->get_operand2();
+    if (is_immediate(operand1) && is_register(operand2)) {
+		string immediate = map_immediate(operand1);
+		return instruction::to_string(1, "srl", {registers_map[operand2], registers_map[operand2], immediate});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_incl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        translated_inst = "addi " + registers_map[inst -> get_operand1()] + ", " + 
-            registers_map[inst -> get_operand1()] + ", " + "1";
+	string operand = inst->get_operand1();
+    if (is_register(operand)) { // first operand is register
+		return instruction::to_string(1, "addi", {registers_map[operand], registers_map[operand], "1"});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_decl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        translated_inst = "addi " + registers_map[inst -> get_operand1()] + ", " + 
-            registers_map[inst -> get_operand1()] + ", " + "-1";
+	string operand = inst->get_operand1();
+    if (is_register(operand)) { // first operand is register
+		return instruction::to_string(1, "addi", {registers_map[operand], registers_map[operand], "-1"});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_negl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        translated_inst = "sub " + registers_map[inst -> get_operand1()] + ", " + 
-            "$zero" + ", " + registers_map[inst -> get_operand1()];
+	string operand = inst->get_operand1();
+    if (is_register(operand)) { // first operand is register
+		return instruction::to_string(1, "sub", {registers_map[operand], registers_map["zero"], registers_map[operand]});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_notl(instruction* inst) {
-    bool is_wrong_inst = false;
-    string translated_inst;
-    if (inst -> get_operand1() == "") {
-        is_wrong_inst = true;
-    }
-    if (inst -> get_operand1().at(0) == '%') { // first operand is register
-        translated_inst = "not " + registers_map[inst -> get_operand1()] + ", " + 
-            registers_map[inst -> get_operand1()];
+	string operand = inst->get_operand1();
+    if (is_register(operand)) { // first operand is register
+		return instruction::to_string(1, "not", {registers_map[operand], registers_map[operand]});
     } else {
-        is_wrong_inst = true;
-    }
-    if (is_wrong_inst) {
         return WRONG_INSTRUCTION_MESG;
     }
-    return translated_inst + "\n";
 }
 
 string translator::translate_jmp(instruction* inst) {
-	return "b " + inst->get_operand1() + "\n";
+	return instruction::to_string(1, "b", {inst->get_operand1()});
 }
 
 string translator::translate_cmpl_j(instruction* cmpl_inst, instruction* j_inst) {
 	string Rsrc1 = cmpl_inst->get_operand2();
     string src2 = cmpl_inst->get_operand1();
-    if (Rsrc1.at(0) == '%') { // register
+    if (is_register(Rsrc1)) { // register
         Rsrc1 = registers_map[Rsrc1];
-    } else if (Rsrc1.at(0) == '$') { // immediate
-        Rsrc1 = Rsrc1.substr(1, Rsrc1.length()-1);
+    } else if (is_immediate(Rsrc1)) { // immediate
+        Rsrc1 = map_immediate(Rsrc1);
     }
-	if (src2.at(0) == '%') { // register
+	if (is_register(src2)) { // register
         src2 = registers_map[src2];
-    } else if (src2.at(0) == '$') { // immediate
-        src2 = src2.substr(1, src2.length()-1);
+    } else if (is_immediate(src2)) { // immediate
+		src2 = map_immediate(src2);
     }
     string j_label = j_inst->get_operand1();
 	string j_op = j_inst->get_op();
 	string translated_inst = "";
 
 	if (j_op == "je") {
-		translated_inst += "beq " + Rsrc1 + ", " + src2 + ", " + j_label;
+		translated_inst += instruction::to_string(1, "beq", {Rsrc1, src2, j_label});
 	} else if (j_op == "jne") {
-		translated_inst += "bne " + Rsrc1 + ", " + src2 + ", " + j_label;
+		translated_inst += instruction::to_string(1, "bne", {Rsrc1, src2, j_label});
 	} else if (j_op == "jl") {
-		translated_inst += "blt " + Rsrc1 + ", " + src2 + ", " + j_label;
+		translated_inst += instruction::to_string(1, "blt", {Rsrc1, src2, j_label});
 	} else if (j_op == "jle") {
-		translated_inst += "ble " + Rsrc1 + ", " + src2 + ", " + j_label;
+		translated_inst += instruction::to_string(1, "ble", {Rsrc1, src2, j_label});
 	} else if (j_op == "jg") {
-		translated_inst += "bgt " + Rsrc1 + ", " + src2 + ", " + j_label;
+		translated_inst += instruction::to_string(1, "bgt", {Rsrc1, src2, j_label});
 	} else if (j_op == "jge") {
-		translated_inst += "bge " + Rsrc1 + ", " + src2 + ", " + j_label;
+		translated_inst += instruction::to_string(1, "bge", {Rsrc1, src2, j_label});
 	}
 
 	return translated_inst += "\n";
@@ -568,6 +479,119 @@ bool translator::is_immediate(string operand) {
 
 bool translator::is_register(string operand) {
 	return operand.size() > 0 && operand.at(0) == '%';
+}
+
+bool translator::is_absolute(string operand) {
+	return all_of(operand.begin(), operand.end(), ::isdigit); 
+}
+
+bool translator::is_indirect(string operand) {
+	return operand.find('(') != string::npos
+		&& operand.find(')') != string::npos
+		&& operand.find(',') == string::npos;
+}
+
+bool translator::is_indexed(string operand) {
+	int comma_count = 0;
+	for (char c : operand) {
+		if (c == ',') {
+			comma_count++;
+		}
+	}
+	return comma_count == 1
+		&& operand.find('(') != string::npos
+		&& operand.find(')') != string::npos;
+}
+
+bool translator::is_scaled_indexed(string operand) {
+	int comma_count = 0;
+	for (char c : operand) {
+		if (c == ',') {
+			comma_count++;
+		}
+	}
+	return comma_count == 2
+		&& operand.find('(') != string::npos
+		&& operand.find(')') != string::npos;
+}
+
+
+string translator::address_absolute(string& translated_insts, string operand) {
+	string result_register = registers_map["addressing_result"];
+	translated_insts += instruction::to_string(1, "addi", {result_register, registers_map["zero"], operand});
+	return "(" + result_register + ")";
+}
+
+string translator::address_indexed(string& translated_insts, string operand) {
+	operand.erase( remove_if( operand.begin(), operand.end(), ::isspace ), operand.end() );
+
+	size_t i = operand.find('(');
+	size_t j = operand.find(')');
+
+	string imm = operand.substr(0, i);
+	string paren_content = operand.substr(i+1, j-i-1);
+
+	string reg1, reg2;
+	istringstream ss(paren_content);
+	getline(ss, reg1, ',');
+	getline(ss, reg2, ',');
+	if (imm.empty()) {
+		imm = "0";
+	}
+	string result_register = registers_map["addressing_result"];
+	string new_operand = imm + "(" + result_register + ")";
+
+	translated_insts += instruction::to_string(1, "add", {result_register, registers_map[reg1], registers_map[reg2]});
+
+	return new_operand;
+}
+
+string translator::address_scaled_indexed(string& translated_insts, string operand) {
+	operand.erase( remove_if( operand.begin(), operand.end(), ::isspace ), operand.end() );
+
+	size_t i = operand.find('(');
+	size_t j = operand.find(')');
+
+	string imm1 = operand.substr(0, i);
+	string paren_content = operand.substr(i+1, j-i-1);
+
+	string reg1, reg2, imm2;
+	istringstream ss(paren_content);
+	getline(ss, reg1, ',');
+	getline(ss, reg2, ',');
+	getline(ss, imm2, ',');
+
+	if (imm1.empty()) {
+		imm1 = "0";
+	}
+	if (reg1.empty()) {
+		reg1 = registers_map["zero"];
+	} else {
+		reg1 = registers_map[reg1];
+	}
+	string result_register = registers_map["addressing_result"];
+	string new_operand = imm1 + "(" + result_register + ")";
+
+	translated_insts += instruction::to_string(1, "addi", {result_register, registers_map["zero"], imm2});
+	translated_insts += instruction::to_string(1, "mult", {result_register, registers_map[reg2]});
+	translated_insts += instruction::to_string(1, "mflo", {result_register});
+	translated_insts += instruction::to_string(1, "add", {result_register, result_register, reg1});
+
+	return new_operand;
+}
+
+string translator::map_indirect(string operand) {
+	size_t i = operand.find("(");
+	size_t j = operand.find(")");
+	string offset = operand.substr(0, i);
+	string dst_register = operand.substr(i+1, j-i-1);
+	string new_operand = offset + "(" + registers_map[dst_register] + ")";
+
+	return new_operand;
+}
+
+string translator::map_immediate(string operand) {
+    return operand.substr(1, operand.size() - 1);
 }
 
 translator::~translator() {

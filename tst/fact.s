@@ -9,8 +9,8 @@ fact:
 	decl %eax
 	pushl %eax
 	call fact
-	imull %ecx, %eax
 	popl %ecx
+	imull %ecx, %eax
 end_fact:
 	leave
 	ret

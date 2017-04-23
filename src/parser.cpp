@@ -54,17 +54,20 @@ instruction* parser::extract_instruction(string line) {
 		line = line.substr(column_pos + 1);
 	}
 
-	string word;
-
-	istringstream iss(line, istringstream::in);
 	vector<string> inst;
 
+	string word;
+	istringstream iss(line, istringstream::in);
 	while (iss >> word) {
-		size_t comma_pos = word.find(",");
-		if (comma_pos != string::npos) {
-			word = word.substr(0, comma_pos);
+		while (word.find("(") != string::npos && word.find(")") == string::npos) {
+			string temp;
+			iss >> temp;
+			word += temp;
 		}
 
+		if (word.at(word.size()-1) == ',') {
+			word = word.substr(0, word.size() - 1);
+		}
 		inst.push_back(word);
 	}
 

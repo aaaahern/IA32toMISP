@@ -22,3 +22,23 @@ string instruction::get_operand2() {
 	return operand2;
 }
 
+string instruction::to_string(int tab_num, string op, initializer_list<string> operands) {
+	string instr_string = "";
+			
+	instr_string.append(tab_num, '\t');
+	instr_string.append(op);
+					
+	if (operands.size() > 0) {
+		instr_string.append(" ");
+		auto iter = operands.begin();
+		instr_string.append(*iter);
+		iter++;
+												
+		for (; iter != operands.end(); iter++) {
+			instr_string.append(", ");
+			instr_string.append(*iter);
+		}
+	}
+
+	return instr_string + "\n";
+}

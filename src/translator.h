@@ -6,6 +6,8 @@
 #include <vector>
 #include <ctype.h>
 #include "parser.h"
+#include <initializer_list>
+
 
 using namespace std;
 
@@ -39,9 +41,20 @@ private:
 	string translate_procedure_end();
 
 
-	/** helper functions **/
+	/** addressing helper functions **/
 	bool is_immediate(string operand);
 	bool is_register(string operand);
+	bool is_indirect(string operand);
+	bool is_absolute(string operand);
+	bool is_indexed(string operand);
+	bool is_scaled_indexed(string operand);
+
+	string map_indirect(string operand);
+	string map_immediate(string operand);
+
+	string address_absolute(string& translated_insts, string operand);
+	string address_indexed(string& translated_insts, string operand);
+	string address_scaled_indexed(string& translated_insts, string operand);
 
 public:
     translator();
