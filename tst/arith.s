@@ -1,13 +1,14 @@
 main:
     pushl %ebp
     movl %esp, %ebp
-    movl $5, %eax
+    movl $67, %eax
+    movl $7, %ebx
+    subl %ebx, %eax # 67-7 = 60
+    prn %eax
     movl $2, %ebx
-    subl %ebx, %eax # 5-2 = 3
+    imull %ebx, %eax # 60*2 = 120
     prn %eax
-    imull %ebx, %eax # 3*2 = 6
-    prn %eax
-    shrl $1, %eax # 6>>2 = 3
+    shrl $3, %eax # 120>>3 = 15
     prn %eax
     leave
     ret

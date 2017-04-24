@@ -55,6 +55,9 @@ string translator::translate_IA32_to_MIPS(parser parser) {
             } else if (op == "imull") {
                 translated_insts += translate_imull(instr);
 				i_iter++;
+            } else if (op == "idivl") {
+                translated_insts += translate_idivl(instr);
+                i_iter++;
             } else if (op == "sall" || op == "shll" ) {
                 translated_insts += translate_sall_or_shll(instr);
 				i_iter++;
@@ -126,6 +129,8 @@ string translator::translate_IA32_to_MIPS(parser parser) {
             } else if (op == "prn") {
                 translated_insts += translate_prn(instr);
                 i_iter++;
+            } else if (op == "cltd") {
+                i_iter++;
             }
 
             output += translated_insts;
@@ -141,9 +146,13 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 }
 
 string translator::translate_prn(instruction* inst) {
-    string translated_inst = "\tadd $a0, $zero, " + registers_map[inst->get_operand1()] + 
-        "\n\tli $v0, 1\n\tsyscall\n";
-    translated_inst += "\tli $v0, 4\n\tla $a0, newline\n\tsyscall\n";
+    string translated_inst = "";
+    translated_inst += instruction::to_string(1, "add", {"$a0", "$zero", registers_map[inst->get_operand1()]});
+    translated_inst += instruction::to_string(1, "li", {"$v0", "1"});
+    translated_inst += instruction::to_string(1, "syscall", {});
+    translated_inst += instruction::to_string(1, "li", {"$v0", "4"});
+    translated_inst += instruction::to_string(1, "la", {"$a0", "newline"});
+    translated_inst += instruction::to_string(1, "syscall", {});
     return translated_inst;
 }
 
@@ -375,6 +384,19 @@ string translator::translate_imull(instruction* inst) {
     }
 }
 
+string translator::translate_idivl(instruction* inst) {
+    string operand = inst->get_operand1();
+    string translated_inst = "";
+    if (is_register(operand)) {
+        translated_inst += instruction::to_string(1, "div", {registers_map["%eax"], registers_map[operand]});
+        translated_inst += instruction::to_string(1, "mflo", {registers_map["%eax"]});
+        translated_inst += instruction::to_string(1, "mfhi", {registers_map["%edx"]});
+    } else {
+        return WRONG_INSTRUCTION_MESG;
+    }
+    return translated_inst;
+}
+
 string translator::translate_sall_or_shll(instruction* inst) {
 	string operand1 = inst->get_operand1();
 	string operand2 = inst->get_operand2();
@@ -422,6 +444,13 @@ string translator::translate_decl(instruction* inst) {
 	string operand = inst->get_operand1();
     if (is_register(operand)) { // first operand is register
 		return instruction::to_string(1, "addi", {registers_map[operand], registers_map[operand], "-1"});
+    } else if (is_indirect(operand)) {
+        string new_operand = map_indirect(operand);
+        string translated_inst;
+        translated_inst += instruction::to_string(1, "lw", {registers_map["temp"], new_operand});
+        translated_inst += instruction::to_string(1, "addi", {registers_map["temp"], registers_map["temp"], "-1"});
+        translated_inst += instruction::to_string(1, "sw", {registers_map["temp"], new_operand});
+        return translated_inst;
     } else {
         return WRONG_INSTRUCTION_MESG;
     }

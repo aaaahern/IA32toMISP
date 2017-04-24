@@ -22,6 +22,7 @@ private:
     string translate_addl_andl_xorl_orl(instruction* inst);
     string translate_subl(instruction* inst);
     string translate_imull(instruction* inst);
+    string translate_idivl(instruction* inst);
     string translate_sall_or_shll(instruction* inst);
     string translate_sarl(instruction* inst);
     string translate_shrl(instruction* inst);
