@@ -20,7 +20,7 @@ translator::translator() {
 string translator::translate_IA32_to_MIPS(parser parser) {
     string output = "";
     // TODO translate .data
-
+    output += ".data\n\tnewline: .asciiz \"\\n\"\n";
     output += ".text\n";
 	vector<block*> blocks = parser.get_code_blocks();
     bool is_procedure_head = true;
@@ -123,6 +123,9 @@ string translator::translate_IA32_to_MIPS(parser parser) {
 			} else if (op == "jmp") {
                 translated_insts += translate_jmp(instr);
                 i_iter++;
+            } else if (op == "prn") {
+                translated_insts += translate_prn(instr);
+                i_iter++;
             }
 
             output += translated_insts;
@@ -135,6 +138,13 @@ string translator::translate_IA32_to_MIPS(parser parser) {
     }
 
 	cout << output << endl;
+}
+
+string translator::translate_prn(instruction* inst) {
+    string translated_inst = "\tadd $a0, $zero, " + registers_map[inst->get_operand1()] + 
+        "\n\tli $v0, 1\n\tsyscall\n";
+    translated_inst += "\tli $v0, 4\n\tla $a0, newline\n\tsyscall\n";
+    return translated_inst;
 }
 
 string translator::translate_procedure_head() {
