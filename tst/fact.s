@@ -1,4 +1,4 @@
-# print the result of (5!)
+# print the result of from (1!) to (10!)
 fact:
 	pushl %ebp	
 	movl %esp, %ebp

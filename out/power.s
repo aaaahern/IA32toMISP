@@ -39,12 +39,6 @@ main:
 	sw $s7, 0($sp)
 	jal power
 	addi $sp, $sp, 8
-	add $a0, $zero, $t0
-	li $v0, 1
-	syscall
-	li $v0, 4
-	la $a0, newline
-	syscall
 	add $t1, $zero, $t0
 	li $t0, 4
 	li $s0, 1
