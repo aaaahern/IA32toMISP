@@ -1,3 +1,4 @@
+# print out fib array
 main:
 	pushl %ebp
 	movl %esp, %ebp
@@ -7,8 +8,11 @@ main:
 loop:   addl %ebx, %eax
     addl %eax, %ebx
 
-    cmpl $1134903170, %eax
-    jl end
+    prn %eax
+    prn %ebx
+
+    cmpl $433494437, %eax
+    jg end
 
     cmpl $0, %ebx
     jg loop

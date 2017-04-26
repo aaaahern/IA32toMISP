@@ -1,11 +1,13 @@
+# test basic procedure call with arguments
 main:
 	pushl %ebp
 	movl %esp, %ebp
 	pushl $3
-	pushl $3
-	pushl $3
+	pushl $6
+	pushl $7
 	call func
-	movl %eax, %ebx
+	movl %eax, %ebx 
+	prn %ebx  # %ebx should be 16
 	leave
 	ret
 

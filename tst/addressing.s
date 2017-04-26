@@ -1,3 +1,4 @@
+# test 14 kinds different memory addressing
 test1:
 	pushl %ebp
 	movl %esp, %ebp

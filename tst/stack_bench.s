@@ -1,3 +1,4 @@
+# print from 1 to 15 and then to 1
 main:
 	pushl %ebp
 	movl %esp, %ebp

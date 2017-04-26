@@ -1,3 +1,4 @@
+# print prime number smaller than 50
 main:
 	pushl %ebp
 	movl %esp, %ebp		

@@ -1,3 +1,4 @@
+# print the result of 7^3
 power:
     pushl   %ebp
     movl    %esp, %ebp
@@ -18,7 +19,7 @@ main:
     pushl   $3
     pushl   $7
     call    power
-    prn     %eax
+    prn     %eax   # should be 343
     movl    $0, %eax
     leave
     ret

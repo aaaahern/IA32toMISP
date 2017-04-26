@@ -1,3 +1,4 @@
+# test basic arithmetic operations
 main:
     pushl %ebp
     movl %esp, %ebp

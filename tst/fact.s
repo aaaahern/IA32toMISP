@@ -1,3 +1,4 @@
+# print the result of (5!)
 fact:
 	pushl %ebp	
 	movl %esp, %ebp
@@ -21,6 +22,7 @@ main:
 	movl %esp, %ebp
 	movl $5, %eax
 	pushl %eax
-	call fact
+	call fact   
+	prn %eax   # should be 120
 	leave
 	ret

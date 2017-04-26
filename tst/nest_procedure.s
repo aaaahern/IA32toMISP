@@ -1,9 +1,10 @@
+# test nested procedure
 main:
 	pushl %ebp
 	movl %esp, %ebp
 	pushl $6
 	call add1
-	movl %eax, %ebx
+	movl %eax, %ebx # %ebx should be 9
 	leave
 	ret
 
