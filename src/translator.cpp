@@ -131,6 +131,9 @@ string translator::translate_IA32_to_MIPS(parser parser) {
                 i_iter++;
             } else if (op == "cltd") {
                 i_iter++;
+            } else if (op == "int") {
+                translated_insts += translate_int(instr);
+                i_iter++;
             }
 
             output += translated_insts;
@@ -142,17 +145,6 @@ string translator::translate_IA32_to_MIPS(parser parser) {
         output += "\n";
     }
     return output;
-}
-
-string translator::translate_prn(instruction* inst) {
-    string translated_inst = "";
-    translated_inst += instruction::to_string(1, "add", {"$a0", "$zero", registers_map[inst->get_operand1()]});
-    translated_inst += instruction::to_string(1, "li", {"$v0", "1"});
-    translated_inst += instruction::to_string(1, "syscall", {});
-    translated_inst += instruction::to_string(1, "li", {"$v0", "4"});
-    translated_inst += instruction::to_string(1, "la", {"$a0", "newline"});
-    translated_inst += instruction::to_string(1, "syscall", {});
-    return translated_inst;
 }
 
 string translator::translate_procedure_head() {
@@ -193,6 +185,24 @@ string translator::translate_call_with_arguments(vector<instruction*> instructio
 	translated_inst += instruction::to_string(1, "addi", {"$sp", "$sp", to_string(4 * argument_count)});
 
 	return translated_inst;
+}
+
+string translator::translate_prn(instruction* inst) {
+    string translated_inst = "";
+    translated_inst += instruction::to_string(1, "add", {"$a0", "$zero", registers_map[inst->get_operand1()]});
+    translated_inst += instruction::to_string(1, "li", {"$v0", "1"});
+    translated_inst += instruction::to_string(1, "syscall", {});
+    translated_inst += instruction::to_string(1, "li", {"$v0", "4"});
+    translated_inst += instruction::to_string(1, "la", {"$a0", "newline"});
+    translated_inst += instruction::to_string(1, "syscall", {});
+    return translated_inst;
+}
+
+string translator::translate_int(instruction* inst) {
+    string translated_inst = "";
+    translated_inst += instruction::to_string(1, "add", {"$a0", "$zero", registers_map["%eax"]});
+    translated_inst += instruction::to_string(1, "li", {"$v0", "1"});
+    translated_inst += instruction::to_string(1, "syscall", {});
 }
 
 string translator::translate_pushl(instruction* inst) {

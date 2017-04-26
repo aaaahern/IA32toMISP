@@ -20,9 +20,16 @@ end_fact:
 main:
 	pushl %ebp	
 	movl %esp, %ebp
-	movl $5, %eax
+	movl $0, %ebx
+loop:
+	incl %ebx
+	pushl %ebx
+	movl %ebx, %eax
 	pushl %eax
-	call fact   
-	prn %eax   # should be 120
+	call fact
+	prn %eax
+	popl %ebx
+	cmpl $10, %ebx
+	jl loop
 	leave
 	ret

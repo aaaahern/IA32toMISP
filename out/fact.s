@@ -38,7 +38,13 @@ main:
 	sw $ra, 4($sp)
 	sw $fp, 0($sp)
 	addi $fp, $sp, 0
-	li $t0, 5
+	li $s0, 0
+
+loop:
+	addi $s0, $s0, 1
+	addi $sp, $sp, -4
+	sw $s0, 0($sp)
+	add $t0, $zero, $s0
 	addi $sp, $sp, -4
 	sw $t0, 0($sp)
 	jal fact
@@ -49,6 +55,10 @@ main:
 	li $v0, 4
 	la $a0, newline
 	syscall
+	lw $s0, 0($sp)
+	addi $sp, $sp, 4
+	blt $s0, 10, loop
+
 	lw $fp, 0($sp)
 	lw $ra, 4($sp)
 	add $sp, $sp, 8

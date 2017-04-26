@@ -38,6 +38,7 @@ private:
 	string translate_jmp(instruction* inst);
 	string translate_cmpl_j(instruction* cmpl_inst, instruction* j_inst);
     string translate_prn(instruction* inst);
+    string translate_int(instruction* inst);
 
 	string translate_procedure_head();
 	string translate_procedure_end();
