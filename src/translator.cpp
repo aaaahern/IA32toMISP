@@ -141,8 +141,7 @@ string translator::translate_IA32_to_MIPS(parser parser) {
         }
         output += "\n";
     }
-
-	cout << output << endl;
+    return output;
 }
 
 string translator::translate_prn(instruction* inst) {
