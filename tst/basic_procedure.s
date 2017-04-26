@@ -6,8 +6,13 @@ main:
 	pushl $6
 	pushl $7
 	call func
-	movl %eax, %ebx 
-	prn %ebx  # %ebx should be 16
+	movl %eax, %ecx 
+	# %ecx should be 16
+	# print %ebx
+	movl $4, %eax
+	movl $1, %ebx
+	movl $5, %edx
+	int 80h
 	leave
 	ret
 

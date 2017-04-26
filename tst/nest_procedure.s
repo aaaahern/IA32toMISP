@@ -4,7 +4,12 @@ main:
 	movl %esp, %ebp
 	pushl $6
 	call add1
-	movl %eax, %ebx # %ebx should be 9
+	movl %eax, %ecx # %ecx should be 9
+	# print %ecx
+    movl $4, %eax
+    movl $1, %ebx
+    movl $5, %edx
+    int 80h
 	leave
 	ret
 

@@ -8,6 +8,14 @@ main:
 	pushl $4
 	pushl $5
 	call access
+	
+	# print %ecx
+	movl $4, %eax
+	movl $1, %ebx
+	movl %ecx, %ecx
+	movl $5, %edx
+	int 80h
+
 	leave
 	ret
 

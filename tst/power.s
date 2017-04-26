@@ -19,7 +19,14 @@ main:
     pushl   $3
     pushl   $7
     call    power
-    prn     %eax   # should be 343
+    # %eax should be 343
+    # print %eax
+    movl %eax, %ecx
+    movl $4, %eax
+    movl $1, %ebx
+    movl $5, %edx
+    int 80h
+
     movl    $0, %eax
     leave
     ret

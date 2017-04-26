@@ -200,9 +200,13 @@ string translator::translate_prn(instruction* inst) {
 
 string translator::translate_int(instruction* inst) {
     string translated_inst = "";
-    translated_inst += instruction::to_string(1, "add", {"$a0", "$zero", registers_map["%eax"]});
+    translated_inst += instruction::to_string(1, "add", {"$a0", "$zero", registers_map["%ecx"]});
     translated_inst += instruction::to_string(1, "li", {"$v0", "1"});
     translated_inst += instruction::to_string(1, "syscall", {});
+    translated_inst += instruction::to_string(1, "li", {"$v0", "4"});
+    translated_inst += instruction::to_string(1, "la", {"$a0", "newline"});
+    translated_inst += instruction::to_string(1, "syscall", {});
+	return translated_inst;
 }
 
 string translator::translate_pushl(instruction* inst) {

@@ -13,7 +13,16 @@ main:
 	sw $s7, 0($sp)
 	jal add1
 	addi $sp, $sp, 4
-	add $s0, $zero, $t0
+	add $t1, $zero, $t0
+	li $t0, 4
+	li $s0, 1
+	li $t2, 5
+	add $a0, $zero, $t1
+	li $v0, 1
+	syscall
+	li $v0, 4
+	la $a0, newline
+	syscall
 	lw $fp, 0($sp)
 	lw $ra, 4($sp)
 	add $sp, $sp, 8

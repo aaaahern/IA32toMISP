@@ -19,8 +19,11 @@ main:
 	sw $s7, 0($sp)
 	jal func
 	addi $sp, $sp, 12
-	add $s0, $zero, $t0
-	add $a0, $zero, $s0
+	add $t1, $zero, $t0
+	li $t0, 4
+	li $s0, 1
+	li $t2, 5
+	add $a0, $zero, $t1
 	li $v0, 1
 	syscall
 	li $v0, 4
